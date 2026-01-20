@@ -38,12 +38,16 @@ public class OpenApiSpecController {
         @ApiResponse(responseCode = "401", description = "Group or artifact not found in registry")
     })
     public ResponseEntity<Void> createOpenApiSpec(@RequestBody SpecUploadRequest request) {
-        logger.info("Inbound request to create OpenAPI spec: groupId={}, artifactId={}, filename={}",
-                    request.getGroupid(), request.getArtifactid(), request.getFilename());
+        logger.info("Inbound request to create OpenAPI spec: groupId={}, artifactId={},  contentType={}, content={}, filename={}",
+                    request.getGroupid(), request.getArtifactid(), request.getContentType(), request.getContent() != null ? "[PROVIDED]" : "[NOT PROVIDED]", request.getFilename() != null ? request.getFilename() : "[NOT PROVIDED]");
 
         // Validate required fields
-        if (request.getGroupid() == null || request.getArtifactid() == null || request.getFilename() == null) {
+        if (request.getGroupid() == null || request.getArtifactid() == null || request.getContentType() == null) {
             logger.warn("Request validation failed: missing required fields");
+            return ResponseEntity.badRequest().build();
+        }
+        if (request.getFilename() == null && request.getContent() == null) {
+            logger.warn("Request validation failed: either filename or content must be provided");
             return ResponseEntity.badRequest().build();
         }
 

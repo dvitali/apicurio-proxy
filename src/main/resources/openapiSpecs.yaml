@@ -31,7 +31,7 @@ components:
       required:
         - groupid
         - artifactid
-        - filename
+        - contentType
       properties:
         groupid:
           type: string
@@ -41,4 +41,13 @@ components:
           example: "user-service"
         filename:
           type: string
+          description: "Path to the OpenAPI spec file in resources (optional if content is provided)"
           example: "v1-spec.yaml"
+        content:
+          type: string
+          description: "Direct content of the OpenAPI spec (optional if filename is provided)"
+          example: "openapi: 3.0.0\ninfo:\n  title: Example API\n..."
+        contentType:
+          type: string
+          description: "Content type of the spec (e.g., application/yaml, application/json)"
+          example: "application/yaml"

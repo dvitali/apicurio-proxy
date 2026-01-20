@@ -12,7 +12,6 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
-
 import com.example.ApicurioProxy.model.SpecUploadRequest;
 
 import java.io.IOException;
@@ -31,13 +30,24 @@ public class OpenApiSpecService {
     }
 
     public void createArtifact(SpecUploadRequest request) throws IOException {
-        // Read the file content
-        logger.debug("Reading file: {}", request.getFilename());
-        ClassPathResource resource = new ClassPathResource(request.getFilename());
-        if (!resource.exists()) {
-            throw new IOException("File not found: " + request.getFilename());
+        logger.info("Service received: filename={}, content={}", request.getFilename(), request.getContent() != null ? "provided" : "null");
+        String fileContent;
+        if (request.getFilename() != null) {
+            // Read from file
+            logger.debug("Reading file: {}", request.getFilename());
+            ClassPathResource resource = new ClassPathResource(request.getFilename());
+            if (!resource.exists()) {
+                throw new IOException("File not found: " + request.getFilename());
+            }
+            fileContent = new String(resource.getInputStream().readAllBytes());
+        } else {
+            // Use provided content
+            fileContent = request.getContent();
+            logger.debug("Using provided content, length: {}", fileContent != null ? fileContent.length() : "null");
+            if (fileContent == null || fileContent.trim().isEmpty()) {
+                throw new IllegalArgumentException("Content is required and cannot be empty when filename is not provided");
+            }
         }
-        String fileContent = new String(resource.getInputStream().readAllBytes());
 
         // Parse the file as OpenAPI using Swagger Parser Library
         logger.info("Try to parse the OpenAPI spec");
@@ -46,11 +56,6 @@ public class OpenApiSpecService {
 
         if (openAPI.getInfo() != null && openAPI.getInfo().getExtensions() != null) {
             logger.info("Extensions in info section: {}", openAPI.getInfo().getExtensions());
-            // log the value of the x-test extension if present
-            Object xTest = openAPI.getInfo().getExtensions().get("x-test");
-            if (xTest != null) {
-                logger.info("x-test extension value: {}", xTest);
-            }
         }
 
         // Prepare request body for creating artifact
@@ -61,7 +66,7 @@ public class OpenApiSpecService {
         Map<String, Object> firstVersion = new HashMap<>();
         Map<String, Object> contentMap = new HashMap<>();
         contentMap.put("content", fileContent);
-        contentMap.put("contentType", "application/yaml");
+        contentMap.put("contentType", request.getContentType());
         firstVersion.put("content", contentMap);
 
         // Add extensions as version labels
@@ -72,7 +77,7 @@ public class OpenApiSpecService {
             }
             firstVersion.put("labels", labels);
         }
-
+        // this attribute is part of the create artifact and it's mandatory, the api will check if the content is changed respect the last version and in case create a new version
         requestBody.put("firstVersion", firstVersion);
 
         // Set headers
