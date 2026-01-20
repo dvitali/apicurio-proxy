@@ -1,0 +1,172 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-parent</artifactId>
+        <version>2.7.18</version>
+        <relativePath/> <!-- lookup parent from repository -->
+    </parent>
+
+    <groupId>com.example.ApicurioProxyApplication</groupId>
+    <artifactId>ApicurioProxy</artifactId>
+    <version>0.0.1-SNAPSHOT</version>
+    <name>ApicurioProxy</name>
+    <description>API Catalog that proxy Apicurio registry</description>
+
+    <properties>
+        <java.version>17</java.version>
+    </properties>
+
+
+    <dependencies>
+        <!-- Spring Boot Web -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+
+        <!-- Spring Boot Data JPA -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-jpa</artifactId>
+        </dependency>
+
+        <!-- H2 Database for testing -->
+        <dependency>
+            <groupId>com.h2database</groupId>
+            <artifactId>h2</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+
+        <!-- OpenAPI / Swagger -->
+        <dependency>
+           <groupId>io.swagger.parser.v3</groupId>
+           <artifactId>swagger-parser</artifactId>
+            <version>2.1.37</version>
+        </dependency>
+       
+
+        <!-- Test -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-core</artifactId>
+            <version>2.15.2</version>
+        </dependency>
+
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+            <version>2.15.2</version>
+        </dependency>
+
+        <dependency>
+            <groupId>io.apicurio</groupId>
+            <artifactId>apicurio-registry-java-sdk</artifactId>
+            <version>3.1.4</version>
+        </dependency>
+
+        <dependency>
+            <groupId>io.apicurio</groupId>
+            <artifactId>apicurio-data-models</artifactId>
+            <version>1.1.14</version>
+        </dependency>
+        
+        <dependency>
+            <groupId>javax.ws.rs</groupId>
+            <artifactId>javax.ws.rs-api</artifactId>
+            <version>2.1.1</version>
+            <scope>compile</scope>
+        </dependency>
+
+    
+    </dependencies>
+
+    <build>
+        <plugins>
+            <!-- Lombok Maven Plugin -->
+            <!-- Maven Compiler Plugin with annotation processing -->
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.11.0</version>
+                <configuration>
+                    <source>17</source>
+                    <target>17</target>
+                    <encoding>UTF-8</encoding>
+                    <release>17</release>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-resources-plugin</artifactId>
+                <version>3.3.1</version>
+                <configuration>
+                    <encoding>UTF-8</encoding>
+                </configuration>
+            </plugin>
+            <!--
+            <plugin>
+                 <groupId>org.springdoc</groupId>
+                 <artifactId>springdoc-openapi-maven-plugin</artifactId>
+                 <version>1.5</version>
+                 <executions>
+                  <execution>
+                   <id>integration-test</id>
+                   <goals>
+                    <goal>generate</goal>
+                   </goals>
+                  </execution>
+                 </executions>
+                 <configuration>
+                  <apiDocsUrl>http://localhost:8123/v3/api-docs.yaml</apiDocsUrl>
+                  <outputFileName>customerAPI-openapi.yaml</outputFileName>
+                  <outputDir>target/openapi</outputDir>
+                  <skip>false</skip>
+                  <failOnError>true</failOnError>
+                 </configuration>
+                </plugin>
+            -->
+
+            <plugin>
+                <groupId>io.apicurio</groupId>
+                <artifactId>apicurio-registry-maven-plugin</artifactId>
+                <version>3.1.2</version>
+                <configuration>
+                    <registryUrl>http://localhost:8080/apis/registry/v3</registryUrl>
+                    <artifacts>
+                        <artifact>
+                            <groupId>Customer API</groupId>
+                            <artifactId>Customer APIs</artifactId>
+                            <artifactType>OPENAPI</artifactType>
+                            <file>${project.basedir}/target/openapi/customerAPI-openapi.yaml</file>
+                            <ifExists>FIND_OR_CREATE_VERSION</ifExists>
+                        </artifact>
+                    </artifacts>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>register-artifact</id>
+                        <goals>
+                            <goal>register</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+
+        </plugins>
+    </build>
+</project>
