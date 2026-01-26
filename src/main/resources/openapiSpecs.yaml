@@ -1,11 +1,18 @@
 openapi: 3.0.0
 info:
   title: OpenAPI Specification Management API
+  contact:
+    email: davide.vitali@unicredit.eu
   version: 1.0.2
   description: API to manage and upload OpenAPI specifications.
-  x-test: enabled
-  x-test2: disabled
-
+  x-appid:  APC
+  x-rate-plan: none
+  x-api-classification: backend
+  x-api-exposure: intranet
+  x-api-runtime: SpringBoot
+  x-api-deployment: GKE
+  x-api-domain: Technology
+  x-api-country: Italy
 paths:
   /openapiSpecs:
     post:
