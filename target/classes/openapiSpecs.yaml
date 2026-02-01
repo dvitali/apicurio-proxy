@@ -1,0 +1,104 @@
+openapi: 3.1.1
+info:
+  title: OpenAPI Specification Management API
+  contact:
+    email: davide.vitali@unicredit.eu
+  version: 1.0.2
+  description: API to manage and upload OpenAPI specifications.
+  x-test: enabled
+  x-test2: disabled
+
+paths:
+  /openapiSpecs:
+    post:
+      summary: Create a new OpenAPI specification entry
+      operationId: createOpenApiSpec
+      requestBody:
+        description: Metadata for the OpenAPI specification file
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SpecUploadRequest'
+      responses:
+        '201':
+          description: OpenAPI specification created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  groupId:
+                    type: string
+                    example: "user-service"
+                  artifactId:
+                    type: string
+                    example: "user-service-api"
+                  artifactVersion:
+                    type: string
+                    example: "1.0.0"
+                  mockedEndpointUrl:
+                    type: string
+                    example: "http://localhost:8585/rest/user-service/1.0.0"
+        '400':
+          description: Invalid input provided
+  /testmock/{id}:
+    get:
+      summary: Test mocked endpoint with ID parameter
+      operationId: getTestMock
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The ID parameter for the test mock
+          schema:
+            type: string
+            example: "123"
+      responses:
+        '200':
+          description: Successful response with test data
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  name:
+                    type: string
+                    example: "john"
+                  surname:
+                    type: string
+                    example: "Doe"
+  
+components:
+  schemas:
+    SpecUploadRequest:
+      type: object
+      required:
+        - groupid
+        - artifactid
+        - contentType
+        - createMockedEndpoint
+      properties:
+        groupid:
+          type: string
+          example: "com.enterprise.api"
+        artifactid:
+          type: string
+          example: "user-service"
+        filename:
+          type: string
+          description: "Path to the OpenAPI spec file in resources (optional if content is provided)"
+          example: "v1-spec.yaml"
+        content:
+          type: string
+          description: "Direct content of the OpenAPI spec (optional if filename is provided)"
+          example: "openapi: 3.0.0\ninfo:\n  title: Example API\n..."
+        contentType:
+          type: string
+          description: "Content type of the spec (e.g., application/yaml, application/json)"
+          example: "application/yaml"
+        createMockedEndpoint:
+          type: boolean
+          description: "Flag to indicate if a mocked endpoint should be created in Microcks"
+          example: true 
+

@@ -1,0 +1,7 @@
+com/example/ApicurioProxy/service/OpenApiSpecService$1.class
+com/example/ApicurioProxy/config/OpenApiConfig.class
+com/example/ApicurioProxy/model/SpecUploadRequest.class
+com/example/ApicurioProxy/ApicurioProxyApplication.class
+com/example/ApicurioProxy/model/ArtifactCreatedResponse.class
+com/example/ApicurioProxy/service/OpenApiSpecService.class
+com/example/ApicurioProxy/controller/OpenApiSpecController.class
