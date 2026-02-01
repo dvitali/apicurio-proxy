@@ -1,0 +1,249 @@
+openapi: 3.0.3
+info:
+  contact:
+    email: support@examples.com
+    name: Development Team
+  description: This API exposes Customer resources as API
+  title: Customer API
+  version: 1.0.1
+  x-app-id: G1P
+externalDocs:
+  description: GIP documentation
+  url: https://confluence.internal.unicredit.eu/spaces/AAWN4/pages/330484489/Group+Integration+Platform+Home
+servers:
+- url: http://localhost:8123
+security:
+- bearerAuth: []
+tags:
+- description: 'Manage customer... '
+  name: Customers
+paths:
+  /api/customers:
+    get:
+      description: Get all customers or filter by name
+      operationId: getCustomers
+      parameters:
+      - description: Name of the client
+        in: query
+        name: name
+        required: false
+        schema:
+          type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Customer"
+              examples:
+                default:
+                  summary: List of customers
+                  value:
+                    - id: 1
+                      name: "John Doe"
+                      email: "john.doe@unicredit.eu"
+      summary: Get all customers or filter by name
+      tags:
+      - Customers
+    post:
+      operationId: createCustomers
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CustomerCreateDTO"
+            examples:
+              default:
+                summary: New customer payload
+                value:
+                  name: "Mario Rossi"
+                  email: "mario.rossi@examples.com"
+        description: Customer to create
+        required: true
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Customer"
+              examples:
+                default:
+                  summary: Created customer response
+                  value:
+                    id: 152
+                    name: "Mario Rossi"
+                    email: "mario.rossi@examples.com"
+      summary: Create a customer
+      tags:
+      - Customers
+  /api/customers/{id}:
+    get:
+      description: Get a customer by Id
+      operationId: getCustomerById
+      parameters:
+      - description: Customer ID
+        in: path
+        name: id
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Customer"
+              examples:
+                default:
+                  summary: Customer details
+                  value:
+                    id: 1
+                    name: "John Doe"
+                    email: "john.doe@unicredit.eu"
+        "404":
+          description: Customer not found
+          content:
+            application/json:
+              schema:
+                type: object
+              examples:
+                default:
+                  summary: Not Found error
+                  value:
+                    status: 404
+                    error: "Not Found"
+                    message: "Customer not found"
+      summary: Get a customer by Id
+      tags:
+      - Customers
+  /api/customers/{id}/address:
+    get:
+      description: Get addresses for a specific customer
+      operationId: getCustomerAddress
+      parameters:
+      - description: Customer ID
+        in: path
+        name: id
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Address"
+              examples:
+                default:
+                  summary: List of customer addresses
+                  value:
+                    - id: 101
+                      address: "Via Livio Cambi 1"
+                      city: "Milan"
+                      country: "Italy"
+                      postalcode: "20066"
+      summary: Get customer addresses
+      tags:
+      - Customers
+    post:
+      description: Create a new address for a specific customer
+      operationId: createCustomerAddress
+      parameters:
+      - description: Customer ID
+        in: path
+        name: id
+        required: true
+        schema:
+          type: integer
+          format: int64
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AddressCreateDTO"
+            examples:
+              default:
+                summary: New address payload
+                value:
+                  address: "Via Roma 1"
+                  city: "Milan"
+                  country: "Italy"
+                  postalcode: "20100"
+        description: Address to create
+        required: true
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Address"
+              examples:
+                default:
+                  summary: Created address response
+                  value:
+                    id: 102
+                    address: "Via Roma 1"
+                    city: "Milan"
+                    country: "Italy"
+                    postalcode: "20100"
+        "404":
+          description: Customer not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Address"
+              examples:
+                default:
+                  summary: Error response
+                  value: {}
+      summary: Create address for a customer
+      tags:
+      - Customers
+components:
+  schemas:
+    Address:
+      type: object
+      properties:
+        address: {type: string}
+        city: {type: string}
+        country: {type: string}
+        customer: {$ref: "#/components/schemas/Customer"}
+        id: {type: integer, format: int64}
+        postalcode: {type: string}
+    AddressCreateDTO:
+      type: object
+      properties:
+        address: {type: string}
+        city: {type: string}
+        country: {type: string}
+        postalcode: {type: string}
+      required: [address, city, country, postalcode]
+    Customer:
+      type: object
+      properties:
+        email: {type: string}
+        id: {type: integer, format: int64}
+        name: {type: string}
+      required: [name]
+    CustomerCreateDTO:
+      type: object
+      properties:
+        email: {type: string}
+        name: {type: string}
+      required: [name]
+  securitySchemes:
+    bearerAuth:
+      bearerFormat: JWT
+      scheme: bearer
+      type: http

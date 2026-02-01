@@ -11,6 +11,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import com.example.ApicurioProxy.model.SpecUploadRequest;
+import com.example.ApicurioProxy.model.ArtifactCreatedResponse;
 import com.example.ApicurioProxy.service.OpenApiSpecService;
 
 import java.io.IOException;
@@ -37,9 +38,9 @@ public class OpenApiSpecController {
         @ApiResponse(responseCode = "400", description = "Invalid input provided"),
         @ApiResponse(responseCode = "401", description = "Group or artifact not found in registry")
     })
-    public ResponseEntity<Void> createOpenApiSpec(@RequestBody SpecUploadRequest request) {
-        logger.info("Inbound request to create OpenAPI spec: groupId={}, artifactId={},  contentType={}, content={}, filename={}",
-                    request.getGroupid(), request.getArtifactid(), request.getContentType(), request.getContent() != null ? "[PROVIDED]" : "[NOT PROVIDED]", request.getFilename() != null ? request.getFilename() : "[NOT PROVIDED]");
+    public ResponseEntity<ArtifactCreatedResponse> createOpenApiSpec(@RequestBody SpecUploadRequest request) {
+        logger.info("Inbound request to create OpenAPI spec: groupId={}, artifactId={}, contentType={}, content={}, filename={}, mockedEndpoint={}",
+                    request.getGroupid(), request.getArtifactid(), request.getContentType(), request.getContent() != null ? "[PROVIDED]" : "[NOT PROVIDED]", request.getFilename() != null ? request.getFilename() : "[NOT PROVIDED]", request.isMockedEndpoint());
 
         // Validate required fields
         if (request.getGroupid() == null || request.getArtifactid() == null || request.getContentType() == null) {
@@ -52,8 +53,8 @@ public class OpenApiSpecController {
         }
 
         try {
-            openApiSpecService.createArtifact(request);
-            return ResponseEntity.status(201).build();
+            ArtifactCreatedResponse response = openApiSpecService.createArtifact(request);
+            return ResponseEntity.status(201).body(response);
         } catch (IOException e) {
             logger.error("Failed to create artifact: {}", e.getMessage(), e);
             return ResponseEntity.badRequest().build();

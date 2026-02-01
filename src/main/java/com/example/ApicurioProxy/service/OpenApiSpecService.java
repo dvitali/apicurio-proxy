@@ -2,19 +2,30 @@ package com.example.ApicurioProxy.service;
 
 import io.swagger.v3.parser.OpenAPIV3Parser;
 import io.swagger.v3.oas.models.OpenAPI;
+import io.swagger.v3.oas.models.info.Info;
+import io.swagger.v3.core.util.Yaml;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.ClassPathResource;
+import org.springframework.core.io.ByteArrayResource;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestTemplate;
 import com.example.ApicurioProxy.model.SpecUploadRequest;
+import com.example.ApicurioProxy.model.ArtifactCreatedResponse;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -26,10 +37,19 @@ public class OpenApiSpecService {
     @Value("${apicurio.registry.url:http://localhost:8080}")
     private String apicurioRegistryUrl;
 
+    @Value("${microcks.url:http://localhost:8085}")
+    private String microcksUrl;
+
+    @Value("${microcks.api.upload.path:/api/artifact/upload}")
+    private String microcksUploadPath;
+
+    @Value("${microcks.service.account.token:}")
+    private String microcksToken;
+
     public OpenApiSpecService() {
     }
 
-    public void createArtifact(SpecUploadRequest request) throws IOException {
+    public ArtifactCreatedResponse createArtifact(SpecUploadRequest request) throws IOException {
         logger.info("Service received: filename={}, content={}", request.getFilename(), request.getContent() != null ? "provided" : "null");
         String fileContent;
         if (request.getFilename() != null) {
@@ -93,7 +113,152 @@ public class OpenApiSpecService {
 
         // Send POST request to create the artifact
         RestTemplate restTemplate = new RestTemplate();
-        restTemplate.postForEntity(createArtifactUrl, entity, String.class);
+        String response = restTemplate.postForEntity(createArtifactUrl, entity, String.class).getBody();
+        logger.info("Response from Apicurio Registry: {}", response);
         logger.info("Successfully created or updated artifact {}/{}", request.getGroupid(), request.getArtifactid());
+
+        // Parse Apicurio response to extract version information
+        ArtifactCreatedResponse artifactResponse = parseApicurioResponse(response, request.getGroupid(), request.getArtifactid());
+
+        if (request.isMockedEndpoint()) {
+            logger.info("Mocked endpoint creation requested");
+            // Handle Microcks integration and mocked endpoint creation
+            handleMicrocksIntegration(openAPI, request.getArtifactid(), artifactResponse);
+            logger.info("Successfully created mocked endpoint: {}", artifactResponse.getMockedEndpoint());
+        }
+        
+        return artifactResponse;
+    }
+
+    /**
+     * Parses the Apicurio Registry response to extract artifact metadata.
+     *
+     * @param response The JSON response from Apicurio Registry
+     * @param groupId The group ID used in the request
+     * @param artifactId The artifact ID used in the request
+     * @return ArtifactCreatedResponse with extracted metadata
+     */
+    private ArtifactCreatedResponse parseApicurioResponse(String response, String groupId, String artifactId) {
+        ArtifactCreatedResponse artifactResponse = new ArtifactCreatedResponse();
+        artifactResponse.setGroupId(groupId);
+        artifactResponse.setArtifactId(artifactId);
+
+        try {
+            ObjectMapper objectMapper = new ObjectMapper();
+            JsonNode rootNode = objectMapper.readTree(response);
+
+            // Extract version from the response - Apicurio v3 returns version info in "version" object
+            JsonNode versionNode = rootNode.path("version");
+            if (!versionNode.isMissingNode()) {
+                String version = versionNode.path("version").asText();
+                if (version != null && !version.isEmpty()) {
+                    artifactResponse.setArtifactVersion(version);
+                }
+            }
+
+            // Fallback: try to get version directly from root
+            if (artifactResponse.getArtifactVersion() == null) {
+                String version = rootNode.path("version").asText();
+                if (version != null && !version.isEmpty() && !version.equals("null")) {
+                    artifactResponse.setArtifactVersion(version);
+                }
+            }
+
+            logger.debug("Parsed artifact response: groupId={}, artifactId={}, version={}",
+                    artifactResponse.getGroupId(), artifactResponse.getArtifactId(), artifactResponse.getArtifactVersion());
+
+        } catch (Exception e) {
+            logger.warn("Failed to parse Apicurio response for version info: {}", e.getMessage());
+            // Continue without version info
+        }
+
+        return artifactResponse;
+    }
+
+    /**
+     * Handles Microcks integration and mocked endpoint creation.
+     * Extracts version from OpenAPI spec, modifies the spec title, uploads to Microcks,
+     * and builds the mocked endpoint URL.
+     *
+     * @param openAPI The parsed OpenAPI specification
+     * @param artifactId The artifact ID used for the spec
+     * @param artifactResponse The response object to set the mocked endpoint URL
+     */
+    private void handleMicrocksIntegration(OpenAPI openAPI, String artifactId, ArtifactCreatedResponse artifactResponse) {
+        // Get the version from OpenAPI spec for Microcks mocked endpoint
+        String specVersion = openAPI.getInfo() != null ? openAPI.getInfo().getVersion() : "1.0.0";
+        logger.info("Modify OpenapiSpec substituting the title with artifactId");
+        openAPI.getInfo().setTitle(artifactId);
+        
+        // Convert OpenAPI object to properly formatted YAML
+        String yamlContent;
+        try {
+            yamlContent = Yaml.pretty().writeValueAsString(openAPI);
+            logger.info("Successfully converted OpenAPI to YAML format");
+        } catch (Exception e) {
+            logger.error("Failed to convert OpenAPI to YAML: {}", e.getMessage(), e);
+            throw new RuntimeException("Failed to serialize OpenAPI specification to YAML", e);
+        }
+        
+        logger.info("Successfully modified OpenapiSpec");
+        // Upload to Microcks after successful Apicurio artifact creation
+        logger.info("Upload to Microcks");
+        uploadToMicrocks(yamlContent, artifactId);
+        logger.info("Successfully upload to Microcks");
+        // Build the mocked endpoint URL: http://localhost:8585/rest/<artifactId>/<version>
+        String mockedEndpoint = microcksUrl + "/rest/" + artifactId + "/" + specVersion;
+        artifactResponse.setMockedEndpoint(mockedEndpoint);
+    }
+
+    /**
+     * Uploads the OpenAPI spec to Microcks for mock generation.
+     * Uses multipart/form-data as required by Microcks API.
+     *
+     * @param openApiContent The OpenAPI specification content
+     * @param artifactId The artifact ID used as filename
+     */
+    private void uploadToMicrocks(String openApiContent, String artifactId) {
+        logger.info("Uploading OpenAPI spec to Microcks...");
+
+        try {
+            RestTemplate restTemplate = new RestTemplate();
+
+            // Set headers for multipart form data
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.MULTIPART_FORM_DATA);
+
+            // Add authorization header if token is provided
+            if (microcksToken != null && !microcksToken.trim().isEmpty()) {
+                headers.set("Authorization", "Bearer " + microcksToken);
+            }
+
+            // Create the file resource from content
+            String filename = artifactId + "-openapi.yaml";
+            ByteArrayResource fileResource = new ByteArrayResource(openApiContent.getBytes(StandardCharsets.UTF_8)) {
+                @Override
+                public String getFilename() {
+                    return filename;
+                }
+            };
+
+            // Build multipart body
+            MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
+            body.add("file", fileResource);
+
+            HttpEntity<MultiValueMap<String, Object>> requestEntity = new HttpEntity<>(body, headers);
+
+            // Build Microcks upload URL
+            String microcksUploadUrl = microcksUrl + microcksUploadPath + "?mainArtifact=true";
+            logger.debug("Uploading to Microcks via: {}", microcksUploadUrl);
+
+            // Send POST request to Microcks
+            ResponseEntity<String> microcksResponse = restTemplate.postForEntity(microcksUploadUrl, requestEntity, String.class);
+            logger.info("Response from Microcks: {}", microcksResponse.getBody());
+            logger.info("Successfully uploaded OpenAPI spec to Microcks");
+
+        } catch (Exception e) {
+            logger.error("Failed to upload OpenAPI spec to Microcks: {}", e.getMessage(), e);
+            // Don't throw - Microcks upload failure shouldn't fail the whole operation
+        }
     }
 }

@@ -13,16 +13,19 @@ public class SpecUploadRequest {
     private String content;
     @JsonProperty("contentType")
     private String contentType;
+    @JsonProperty("mockedEndpoint")
+    private boolean mockedEndpoint;
 
     public SpecUploadRequest() {
     }
 
-    public SpecUploadRequest(String groupid, String artifactid, String filename, String content, String contentType) {
+    public SpecUploadRequest(String groupid, String artifactid, String filename, String content, String contentType, boolean mockedEndpoint) {
         this.groupid = groupid;
         this.artifactid = artifactid;
         this.filename = filename;
         this.content = content;
         this.contentType = contentType;
+        this.mockedEndpoint = mockedEndpoint;
     }
 
     public String getGroupid() {
@@ -63,5 +66,13 @@ public class SpecUploadRequest {
 
     public void setContentType(String contentType) {
         this.contentType = contentType;
+    }
+
+    public boolean isMockedEndpoint() {
+        return mockedEndpoint;
+    }
+
+    public void setMockedEndpoint(boolean mockedEndpoint) {
+        this.mockedEndpoint = mockedEndpoint;
     }
 }
