@@ -6,10 +6,10 @@ info:
   description: This API exposes Customer resources as API
   title: Customer API
   version: 1.0.1
-  x-app-id: G1P
+  x-app-id: APC
 externalDocs:
-  description: GIP documentation
-  url: https://confluence.internal.unicredit.eu/spaces/AAWN4/pages/330484489/Group+Integration+Platform+Home
+  description: APC documentation
+  url: https://confluence.internal.unicredit.eu/
 servers:
 - url: http://localhost:8123
 security:
