@@ -123,7 +123,7 @@ public class OpenApiSpecService {
         if (request.isMockedEndpoint()) {
             logger.info("Mocked endpoint creation requested");
             // Handle Microcks integration and mocked endpoint creation
-            handleMicrocksIntegration(openAPI, request.getArtifactid(), artifactResponse);
+            handleMicrocksIntegration(openAPI, request.getArtifactid(), request.getContentType(), artifactResponse);
             logger.info("Successfully created mocked endpoint: {}", artifactResponse.getMockedEndpoint());
         }
         
@@ -182,28 +182,33 @@ public class OpenApiSpecService {
      *
      * @param openAPI The parsed OpenAPI specification
      * @param artifactId The artifact ID used for the spec
+     * @param contentType The content type of the original request
      * @param artifactResponse The response object to set the mocked endpoint URL
      */
-    private void handleMicrocksIntegration(OpenAPI openAPI, String artifactId, ArtifactCreatedResponse artifactResponse) {
+    private void handleMicrocksIntegration(OpenAPI openAPI, String artifactId, String contentType, ArtifactCreatedResponse artifactResponse) {
         // Get the version from OpenAPI spec for Microcks mocked endpoint
         String specVersion = openAPI.getInfo() != null ? openAPI.getInfo().getVersion() : "1.0.0";
         logger.info("Modify OpenapiSpec substituting the title with artifactId");
         openAPI.getInfo().setTitle(artifactId);
+        logger.info("Successfully modified OpenapiSpec");
+        // Convert OpenAPI object to properly formatted YAML or JSON 
         
-        // Convert OpenAPI object to properly formatted YAML
-        String yamlContent;
+        String content = null;
         try {
-            yamlContent = Yaml.pretty().writeValueAsString(openAPI);
-            logger.info("Successfully converted OpenAPI to YAML format");
+            if ("application/yaml".equals(contentType) || "application/x-yaml".equals(contentType)) {
+                content  = Yaml.pretty().writeValueAsString(openAPI);
+                logger.info("Successfully converted OpenAPI to YAML format");
+            } else if ("application/json".equals(contentType)) {
+                content = io.swagger.v3.core.util.Json.pretty(openAPI);
+                logger.info("Successfully converted OpenAPI to JSON format");
+            }
         } catch (Exception e) {
-            logger.error("Failed to convert OpenAPI to YAML: {}", e.getMessage(), e);
+            logger.error("Failed to convert OpenAPI to YAML/JSON: {}", e.getMessage(), e);
             throw new RuntimeException("Failed to serialize OpenAPI specification to YAML", e);
         }
         
-        logger.info("Successfully modified OpenapiSpec");
-        // Upload to Microcks after successful Apicurio artifact creation
-        logger.info("Upload to Microcks");
-        uploadToMicrocks(yamlContent, artifactId);
+        logger.info("Try to upload to Microcks");
+        uploadToMicrocks(content, artifactId);
         logger.info("Successfully upload to Microcks");
         // Build the mocked endpoint URL: http://localhost:8585/rest/<artifactId>/<version>
         String mockedEndpoint = microcksUrl + "/rest/" + artifactId + "/" + specVersion;
